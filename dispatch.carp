@@ -1,0 +1,225 @@
+(load "../carp-collections/deque.carp")
+(load "../carp-collections/priority_queue.carp")
+
+(use Deque)
+(use PriorityQueue)
+(use Result)
+
+;; --- TimedEvent ---
+
+(doc TimedEvent
+  "is a wrapper for an event with a target execution timestamp, optional interval, and unique ID.")
+(deftype (TimedEvent e) [execute-at Uint64
+                         payload e
+                         interval Uint64
+                         id Long])
+
+(defmodule TimedEvent
+  (doc <
+    "is a comparator for TimedEvents, used to maintain a min-heap in the Scheduler.")
+  (defn < [a b] (Uint64.< @(TimedEvent.execute-at a) @(TimedEvent.execute-at b))))
+
+;; --- Dispatcher ---
+
+(doc Dispatcher "manages event subscriptions and synchronous broadcasting.")
+(deftype (Dispatcher e)
+  [handlers (Array (Pair Long (Fn [(Ref e)] (Result () String))))
+   next-id Long])
+
+(defmodule Dispatcher
+  (doc new "creates a new, empty Dispatcher.")
+  (defn new [] (Dispatcher.init [] 0l))
+
+  (doc subscribe!
+    "registers a handler function and returns a unique ID for unsubscription.
+The handler will receive a reference to the event and should return a Result.")
+  (defn subscribe! [d handler]
+    (let [id @(Dispatcher.next-id d)]
+      (do
+        (Array.push-back! (Dispatcher.handlers d) (Pair.init id @handler))
+        (Dispatcher.set-next-id! d (inc id))
+        id)))
+
+  (doc unsubscribe! "removes a handler by its ID. O(n) complexity.")
+  (defn unsubscribe! [d id]
+    (let [hs (Dispatcher.handlers d)
+          len (Array.length hs)
+          new-hs []
+          found false]
+      (do
+        (for [i 0 len]
+          (let [p (Array.unsafe-nth hs i)]
+            (if (= @(Pair.a p) id)
+              (set! found true)
+              (set! new-hs (Array.push-back new-hs @p)))))
+        (when found (Dispatcher.set-handlers! d new-hs))
+        found)))
+
+  (doc broadcast!
+    "synchronously sends an event reference to all registered handlers. 
+Snapshots the handlers before iteration to ensure safety if handlers modify subscriptions.
+Returns an array of error messages from handlers that failed.")
+  (defn broadcast! [d event]
+    (let [hs @(Dispatcher.handlers d)
+          ;; Snapshot to allow mutation during iteration
+          len (Array.length &hs)
+          errors []]
+      (do
+        (for [i 0 len]
+          (let [res (~(Pair.b (Array.unsafe-nth &hs i)) event)]
+            (match res
+              (Result.Error msg) (set! errors (Array.push-back errors msg))
+              (Result.Success _) ())))
+        errors))))
+
+;; --- Scheduler ---
+
+(doc Scheduler
+  "manages timed tasks and periodic events with cancellation support.")
+(deftype (Scheduler e) [delayed (PriorityQueue (TimedEvent e))
+                        next-id Long])
+
+(defmodule Scheduler
+  (doc new "creates a new, empty Scheduler.")
+  (defn new [] (Scheduler.init (PriorityQueue.new) 0l))
+
+  (doc schedule!
+    "adds an event to be yielded after a delay (in milliseconds). Returns a TaskID for cancellation.")
+  (defn schedule! [s event delay-ms]
+    (let [now (System.nanotime)
+          id @(Scheduler.next-id s)
+          target (Uint64.+ now
+                           (Uint64.* (Uint64.from-long (the Long delay-ms))
+                                     (Uint64.from-long 1000000l)))
+          te (TimedEvent.init target event (Uint64.from-long 0l) id)]
+      (do
+        (PriorityQueue.push! (Scheduler.delayed s) te &TimedEvent.<)
+        (Scheduler.set-next-id! s (inc id))
+        id)))
+
+  (doc schedule-periodic!
+    "adds an event to be yielded repeatedly at a fixed interval. Returns a TaskID for cancellation.")
+  (defn schedule-periodic! [s event interval-ms]
+    (let [now (System.nanotime)
+          id @(Scheduler.next-id s)
+          interval (Uint64.*
+            (Uint64.from-long (the Long interval-ms))
+            (Uint64.from-long 1000000l))
+          target (Uint64.+ now interval)
+          te (TimedEvent.init target event interval id)]
+      (do
+        (PriorityQueue.push! (Scheduler.delayed s) te &TimedEvent.<)
+        (Scheduler.set-next-id! s (inc id))
+        id)))
+
+  (doc cancel! "cancels a scheduled task by its ID. O(n) complexity.")
+  (defn cancel! [s id]
+    (let [pq (Scheduler.delayed s)
+          idx (PriorityQueue.find-index pq &(fn [te] (= @(TimedEvent.id te) id)))]
+      (match idx
+        (Maybe.Just i) (PriorityQueue.remove-at! pq i &TimedEvent.<)
+        (Maybe.Nothing) false)))
+
+  (doc drain-due!
+    "removes and returns all events whose time has come. Re-queues periodic tasks.")
+  (defn drain-due! [s now]
+    (let [pq (Scheduler.delayed s)
+          due []]
+      (do
+        (while (not (PriorityQueue.empty? pq))
+          (let [top (PriorityQueue.peek pq)]
+            (match top
+              (Maybe.Just te)
+                (if (Uint64.<= @(TimedEvent.execute-at &te) now)
+                  (let [expired (Maybe.unsafe-from (PriorityQueue.pop! pq
+                                                                       &TimedEvent.<))]
+                    (do
+                      (set! due
+                            (Array.push-back due @(TimedEvent.payload &expired)))
+                      (let [interval @(TimedEvent.interval &expired)]
+                        (when (Uint64.> interval (Uint64.from-long 0l))
+                          (let [next-target (Uint64.+ @(TimedEvent.execute-at &expired)
+                                                      interval)
+                                renewed (TimedEvent.set-execute-at expired
+                                                                   next-target)]
+                            (PriorityQueue.push! pq renewed &TimedEvent.<))))))
+                  (break))
+              (Maybe.Nothing) (break))))
+        due))))
+
+;; --- Coordinator ---
+
+(doc Coordinator
+  "orchestrates a Scheduler and a Dispatcher into a cohesive event loop.")
+(deftype (Coordinator e)
+  [immediate (Deque e)
+   scheduler (Scheduler e)
+   dispatcher (Dispatcher e)
+   running (Array Bool)])
+
+(defmodule Coordinator
+  (doc new "creates a new, idle Coordinator.")
+  (defn new []
+    (Coordinator.init (Deque.new) (Scheduler.new) (Dispatcher.new) [false]))
+
+  (doc subscribe!
+    "registers a handler with the underlying dispatcher. Returns unique ID.")
+  (defn subscribe! [c handler]
+    (Dispatcher.subscribe! (Coordinator.dispatcher c) handler))
+
+  (doc unsubscribe! "removes a handler from the underlying dispatcher.")
+  (defn unsubscribe! [c id]
+    (Dispatcher.unsubscribe! (Coordinator.dispatcher c) id))
+
+  (doc dispatch! "adds an event to the immediate queue (FIFO).")
+  (defn dispatch! [c event] (Deque.push-back! (Coordinator.immediate c) event))
+
+  (doc dispatch-urgent!
+    "adds an event to the front of the immediate queue, skipping others.")
+  (defn dispatch-urgent! [c event]
+    (Deque.push-front! (Coordinator.immediate c) event))
+
+  (doc schedule! "schedules an event. Returns TaskID.")
+  (defn schedule! [c event delay-ms]
+    (Scheduler.schedule! (Coordinator.scheduler c) event delay-ms))
+
+  (doc schedule-periodic! "schedules a periodic event. Returns TaskID.")
+  (defn schedule-periodic! [c event interval-ms]
+    (Scheduler.schedule-periodic! (Coordinator.scheduler c) event interval-ms))
+
+  (doc cancel! "cancels a scheduled task.")
+  (defn cancel! [c id] (Scheduler.cancel! (Coordinator.scheduler c) id))
+
+  (doc stop! "signals the coordinator to stop its loop.")
+  (defn stop! [c] (Array.aset! (Coordinator.running c) 0 false))
+
+  (doc tick!
+    "performs one step of orchestration: drains due tasks and broadcasts all pending events. 
+Note: This function will recursively drain the queue until it is empty (including events enqueued during broadcast).")
+  (defn tick! [c]
+    (let [due (Scheduler.drain-due! (Coordinator.scheduler c) (System.nanotime))
+          due-len (Array.length &due)
+          q (Coordinator.immediate c)
+          d (Coordinator.dispatcher c)
+          processed 0]
+      (do
+        (for [i 0 due-len] (Deque.push-back! q @(Array.unsafe-nth &due i)))
+        (set! processed (Deque.length q))
+        (while (not (Deque.empty? q))
+          (let [ev (Maybe.unsafe-from (Deque.pop-front! q))
+                errors (Dispatcher.broadcast! d &ev)]
+            (do
+              (when (not (Array.empty? &errors))
+                (for [i 0 (Array.length &errors)]
+                  (IO.println
+                    &(str* "Handler Error: " (Array.unsafe-nth &errors i)))))
+              ())))
+        processed)))
+
+  (doc run! "starts the execution loop.")
+  (defn run! [c]
+    (do
+      (Array.aset! (Coordinator.running c) 0 true)
+      (while @(Array.unsafe-nth (Coordinator.running c) 0)
+        (let [processed (Coordinator.tick! c)]
+          (when (= processed 0) (System.sleep-micros 1000)))))))

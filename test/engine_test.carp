@@ -1,0 +1,177 @@
+(load "Test.carp")
+(use Test)
+(load "dispatch.carp")
+(use Dispatcher)
+(use Scheduler)
+(use Coordinator)
+(use Result)
+
+(def global-fired [false])
+(def global-received [0])
+(def global-timer-fired [0])
+(def global-per-count [0])
+(def global-unsub-count [0])
+
+(deftest dispatch-modular-test
+  (let [state (Test.State.init 0 0)]
+    (do
+      ;; Test Dispatcher
+      (let [d (the (Dispatcher Int) (Dispatcher.new))]
+        (do
+          (ignore
+            (Dispatcher.subscribe! &d
+                                   &(the (Fn [(Ref Int)] (Result () String))
+                                         (fn [ev]
+                                           (do
+                                             (Array.aset! &global-fired 0 true)
+                                             (Result.Success ()))))))
+          (ignore (Dispatcher.broadcast! &d &1))
+          (set! state
+                (assert-true &state
+                  @(Array.unsafe-nth &global-fired 0)
+                  "Dispatcher broadcast works"))))
+
+      ;; Test Scheduler & Cancellation
+      (let [s (the (Scheduler Int) (Scheduler.new))]
+        (do
+          (let [id1 (Scheduler.schedule! &s 1 100l)
+                id2 (Scheduler.schedule! &s 2 200l)]
+            (do
+              (ignore (Scheduler.cancel! &s id1))
+              (let [due (Scheduler.drain-due! &s
+                                              (Uint64.+ (System.nanotime)
+                                                        (Uint64.from-long 1000000000l)))]
+                (do
+                  (set! state
+                        (assert-equal &state
+                          1
+                          (Array.length &due)
+                          "Scheduler handles cancellation"))
+                  (set! state
+                        (assert-equal &state
+                          2
+                          @(Array.unsafe-nth &due 0)
+                          "Scheduler yields correct non-cancelled task"))))))))
+
+      ;; Test Coordinator & Urgent Dispatch
+      (let [c (the (Coordinator Int) (Coordinator.new))
+            running-ptr (Array.unsafe-raw (Coordinator.running &c))]
+        (do
+          (ignore
+            (Coordinator.subscribe! &c
+                                    &(the (Fn [(Ref Int)] (Result () String))
+                                          (fn [ev]
+                                            (if (= @ev -1)
+                                              (do
+                                                (Pointer.set running-ptr false)
+                                                (Result.Success ()))
+                                              (do
+                                                (Array.aset! &global-received
+                                                             0
+                                                             (+ @(Array.unsafe-nth &global-received
+                                                                                   0)
+                                                                @ev))
+                                                (Result.Success ())))))))
+
+          (Coordinator.dispatch! &c 10)
+          (Coordinator.dispatch-urgent! &c 20)
+          ;; Should be first
+          (Coordinator.dispatch! &c -1)
+
+          (Coordinator.run! &c)
+          (set! state
+                (assert-equal &state
+                  30
+                  @(Array.unsafe-nth &global-received 0)
+                  "Urgent and normal events processed"))))
+
+      ;; Reset counts for next tests
+      (Array.aset! &global-received 0 0)
+
+      ;; Test Timers in Coordinator
+      (let [c2 (the (Coordinator Int) (Coordinator.new))
+            running-ptr2 (Array.unsafe-raw (Coordinator.running &c2))]
+        (do
+          (ignore
+            (Coordinator.subscribe! &c2
+                                    &(the (Fn [(Ref Int)] (Result () String))
+                                          (fn [ev]
+                                            (if (= @ev -1)
+                                              (do
+                                                (Pointer.set running-ptr2 false)
+                                                (Result.Success ()))
+                                              (do
+                                                (Array.aset! &global-timer-fired
+                                                             0
+                                                             (+
+                                                               @(Array.unsafe-nth &global-timer-fired
+                                                                                  0)
+                                                               1))
+                                                (Result.Success ())))))))
+
+          (ignore (Coordinator.schedule! &c2 1 10l))
+          (ignore (Coordinator.schedule! &c2 -1 30l))
+
+          (Coordinator.run! &c2)
+          (set! state
+                (assert-true &state
+                  (> @(Array.unsafe-nth &global-timer-fired 0) 0)
+                  "Delayed timer fired"))))
+
+      ;; Test Unsubscribe
+      (let [c3 (the (Coordinator Int) (Coordinator.new))]
+        (do
+          (let [id (Coordinator.subscribe! &c3
+                                           &(the (Fn [(Ref Int)]
+                                                     (Result () String))
+                                                 (fn [ev]
+                                                   (do
+                                                     (Array.aset! &global-unsub-count
+                                                                  0
+                                                                  (+
+                                                                    @(Array.unsafe-nth &global-unsub-count
+                                                                                       0)
+                                                                    1))
+                                                     (Result.Success ())))))]
+            (do
+              (Coordinator.dispatch! &c3 1)
+              (ignore (Coordinator.tick! &c3))
+              (ignore (Coordinator.unsubscribe! &c3 id))
+              (Coordinator.dispatch! &c3 1)
+              (ignore (Coordinator.tick! &c3))))
+          (set! state
+                (assert-equal &state
+                  1
+                  @(Array.unsafe-nth &global-unsub-count 0)
+                  "Unsubscribe works"))))
+
+      ;; Test Periodic
+      (let [c4 (the (Coordinator Int) (Coordinator.new))
+            running-ptr4 (Array.unsafe-raw (Coordinator.running &c4))]
+        (do
+          (ignore
+            (Coordinator.subscribe! &c4
+                                    &(the (Fn [(Ref Int)] (Result () String))
+                                          (fn [ev]
+                                            (do
+                                              (Array.aset! &global-per-count
+                                                           0
+                                                           (+ @(Array.unsafe-nth &global-per-count
+                                                                                 0)
+                                                              1))
+                                              (if (>= @(Array.unsafe-nth &global-per-count
+                                                                         0)
+                                                      3)
+                                                (do
+                                                  (Pointer.set running-ptr4
+                                                               false)
+                                                  (Result.Success ()))
+                                                (Result.Success ())))))))
+          (ignore (Coordinator.schedule-periodic! &c4 1 10l))
+          (Coordinator.run! &c4)
+          (set! state
+                (assert-true &state
+                  (>= @(Array.unsafe-nth &global-per-count 0) 3)
+                  "Periodic timer fired multiple times"))))
+
+      state)))
