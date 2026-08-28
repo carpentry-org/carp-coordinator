@@ -1,0 +1,414 @@
+<!DOCTYPE HTML>
+
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+        <link rel="stylesheet" href="../style.css">
+    </head>
+    <body>
+        <div class="content">
+            <div class="logo">
+                <a href="https://github.com/carpentry-org/carp-coordinator">
+                    <img src="">
+                </a>
+                <div class="title">
+                    carp-coordinator
+                </div>
+                <div class="index">
+                    <ul>
+                        <li>
+                            <a href="TimedEvent.html">
+                                TimedEvent
+                            </a>
+                        </li>
+                        <li>
+                            <a href="Dispatcher.html">
+                                Dispatcher
+                            </a>
+                        </li>
+                        <li>
+                            <a href="Scheduler.html">
+                                Scheduler
+                            </a>
+                        </li>
+                        <li>
+                            <a href="Coordinator.html">
+                                Coordinator
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            <div class="module">
+                <h1>
+                    Scheduler
+                </h1>
+                <div class="module-description">
+                    <p>manages timed tasks and periodic events with cancellation support.</p>
+
+                </div>
+                <div class="binder">
+                    <a class="anchor" href="#cancel!">
+                        <h3 id="cancel!">
+                            cancel!
+                        </h3>
+                    </a>
+                    <div class="description">
+                        defn
+                    </div>
+                    <p class="sig">
+                        (Fn [(Ref (Scheduler a) b), Long] Bool)
+                    </p>
+                    <pre class="args">
+                        (cancel! s id)
+                    </pre>
+                    <p class="doc">
+                        <p>cancels a scheduled task by its ID. O(n) complexity.</p>
+
+                    </p>
+                </div>
+                <div class="binder">
+                    <a class="anchor" href="#copy">
+                        <h3 id="copy">
+                            copy
+                        </h3>
+                    </a>
+                    <div class="description">
+                        template
+                    </div>
+                    <p class="sig">
+                        (Fn [(Ref (Scheduler a) b)] (Scheduler a))
+                    </p>
+                    <span>
+                        
+                    </span>
+                    <p class="doc">
+                        <p>copies a <code>Scheduler</code>.</p>
+
+                    </p>
+                </div>
+                <div class="binder">
+                    <a class="anchor" href="#delayed">
+                        <h3 id="delayed">
+                            delayed
+                        </h3>
+                    </a>
+                    <div class="description">
+                        instantiate
+                    </div>
+                    <p class="sig">
+                        (Fn [(Ref (Scheduler a) b)] (Ref (PriorityQueue (TimedEvent a)) b))
+                    </p>
+                    <span>
+                        
+                    </span>
+                    <p class="doc">
+                        <p>gets the <code>delayed</code> property of a <code>Scheduler</code>.</p>
+
+                    </p>
+                </div>
+                <div class="binder">
+                    <a class="anchor" href="#delete">
+                        <h3 id="delete">
+                            delete
+                        </h3>
+                    </a>
+                    <div class="description">
+                        template
+                    </div>
+                    <p class="sig">
+                        (Fn [(Scheduler a)] ())
+                    </p>
+                    <span>
+                        
+                    </span>
+                    <p class="doc">
+                        <p>deletes a <code>Scheduler</code>. Should usually not be called manually.</p>
+
+                    </p>
+                </div>
+                <div class="binder">
+                    <a class="anchor" href="#drain-due!">
+                        <h3 id="drain-due!">
+                            drain-due!
+                        </h3>
+                    </a>
+                    <div class="description">
+                        defn
+                    </div>
+                    <p class="sig">
+                        (Fn [(Ref (Scheduler a) b), Uint64] (Array a))
+                    </p>
+                    <pre class="args">
+                        (drain-due! s now)
+                    </pre>
+                    <p class="doc">
+                        <p>removes and returns all events whose time has come. Re-queues periodic tasks.</p>
+
+                    </p>
+                </div>
+                <div class="binder">
+                    <a class="anchor" href="#init">
+                        <h3 id="init">
+                            init
+                        </h3>
+                    </a>
+                    <div class="description">
+                        template
+                    </div>
+                    <p class="sig">
+                        (Fn [(PriorityQueue (TimedEvent a)), Long] (Scheduler a))
+                    </p>
+                    <span>
+                        
+                    </span>
+                    <p class="doc">
+                        <p>creates a <code>Scheduler</code>.</p>
+
+                    </p>
+                </div>
+                <div class="binder">
+                    <a class="anchor" href="#new">
+                        <h3 id="new">
+                            new
+                        </h3>
+                    </a>
+                    <div class="description">
+                        defn
+                    </div>
+                    <p class="sig">
+                        (Fn [] (Scheduler a))
+                    </p>
+                    <pre class="args">
+                        (new)
+                    </pre>
+                    <p class="doc">
+                        <p>creates a new, empty Scheduler.</p>
+
+                    </p>
+                </div>
+                <div class="binder">
+                    <a class="anchor" href="#next-id">
+                        <h3 id="next-id">
+                            next-id
+                        </h3>
+                    </a>
+                    <div class="description">
+                        instantiate
+                    </div>
+                    <p class="sig">
+                        (Fn [(Ref (Scheduler a) b)] (Ref Long b))
+                    </p>
+                    <span>
+                        
+                    </span>
+                    <p class="doc">
+                        <p>gets the <code>next-id</code> property of a <code>Scheduler</code>.</p>
+
+                    </p>
+                </div>
+                <div class="binder">
+                    <a class="anchor" href="#prn">
+                        <h3 id="prn">
+                            prn
+                        </h3>
+                    </a>
+                    <div class="description">
+                        template
+                    </div>
+                    <p class="sig">
+                        (Fn [(Ref (Scheduler a) b)] String)
+                    </p>
+                    <span>
+                        
+                    </span>
+                    <p class="doc">
+                        <p>converts a <code>Scheduler</code> to a string.</p>
+
+                    </p>
+                </div>
+                <div class="binder">
+                    <a class="anchor" href="#schedule!">
+                        <h3 id="schedule!">
+                            schedule!
+                        </h3>
+                    </a>
+                    <div class="description">
+                        defn
+                    </div>
+                    <p class="sig">
+                        (Fn [(Ref (Scheduler a) b), a, Long] Long)
+                    </p>
+                    <pre class="args">
+                        (schedule! s event delay-ms)
+                    </pre>
+                    <p class="doc">
+                        <p>adds an event to be yielded after a delay (in milliseconds). Returns a TaskID for cancellation.</p>
+
+                    </p>
+                </div>
+                <div class="binder">
+                    <a class="anchor" href="#schedule-periodic!">
+                        <h3 id="schedule-periodic!">
+                            schedule-periodic!
+                        </h3>
+                    </a>
+                    <div class="description">
+                        defn
+                    </div>
+                    <p class="sig">
+                        (Fn [(Ref (Scheduler a) b), a, Long] Long)
+                    </p>
+                    <pre class="args">
+                        (schedule-periodic! s event interval-ms)
+                    </pre>
+                    <p class="doc">
+                        <p>adds an event to be yielded repeatedly at a fixed interval. Returns a TaskID for cancellation.</p>
+
+                    </p>
+                </div>
+                <div class="binder">
+                    <a class="anchor" href="#set-delayed">
+                        <h3 id="set-delayed">
+                            set-delayed
+                        </h3>
+                    </a>
+                    <div class="description">
+                        template
+                    </div>
+                    <p class="sig">
+                        (Fn [(Scheduler a), (PriorityQueue (TimedEvent a))] (Scheduler a))
+                    </p>
+                    <span>
+                        
+                    </span>
+                    <p class="doc">
+                        <p>sets the <code>delayed</code> property of a <code>Scheduler</code>.</p>
+
+                    </p>
+                </div>
+                <div class="binder">
+                    <a class="anchor" href="#set-delayed!">
+                        <h3 id="set-delayed!">
+                            set-delayed!
+                        </h3>
+                    </a>
+                    <div class="description">
+                        template
+                    </div>
+                    <p class="sig">
+                        (Fn [(Ref (Scheduler a) b), (PriorityQueue (TimedEvent a))] ())
+                    </p>
+                    <span>
+                        
+                    </span>
+                    <p class="doc">
+                        <p>sets the <code>delayed</code> property of a <code>Scheduler</code> in place.</p>
+
+                    </p>
+                </div>
+                <div class="binder">
+                    <a class="anchor" href="#set-next-id">
+                        <h3 id="set-next-id">
+                            set-next-id
+                        </h3>
+                    </a>
+                    <div class="description">
+                        instantiate
+                    </div>
+                    <p class="sig">
+                        (Fn [(Scheduler a), Long] (Scheduler a))
+                    </p>
+                    <span>
+                        
+                    </span>
+                    <p class="doc">
+                        <p>sets the <code>next-id</code> property of a <code>Scheduler</code>.</p>
+
+                    </p>
+                </div>
+                <div class="binder">
+                    <a class="anchor" href="#set-next-id!">
+                        <h3 id="set-next-id!">
+                            set-next-id!
+                        </h3>
+                    </a>
+                    <div class="description">
+                        instantiate
+                    </div>
+                    <p class="sig">
+                        (Fn [(Ref (Scheduler a) b), Long] ())
+                    </p>
+                    <span>
+                        
+                    </span>
+                    <p class="doc">
+                        <p>sets the <code>next-id</code> property of a <code>Scheduler</code> in place.</p>
+
+                    </p>
+                </div>
+                <div class="binder">
+                    <a class="anchor" href="#str">
+                        <h3 id="str">
+                            str
+                        </h3>
+                    </a>
+                    <div class="description">
+                        template
+                    </div>
+                    <p class="sig">
+                        (Fn [(Ref (Scheduler a) b)] String)
+                    </p>
+                    <span>
+                        
+                    </span>
+                    <p class="doc">
+                        <p>converts a <code>Scheduler</code> to a string.</p>
+
+                    </p>
+                </div>
+                <div class="binder">
+                    <a class="anchor" href="#update-delayed">
+                        <h3 id="update-delayed">
+                            update-delayed
+                        </h3>
+                    </a>
+                    <div class="description">
+                        instantiate
+                    </div>
+                    <p class="sig">
+                        (Fn [(Scheduler a), (Ref (Fn [(PriorityQueue (TimedEvent a))] (PriorityQueue (TimedEvent a)) b) c)] (Scheduler a))
+                    </p>
+                    <span>
+                        
+                    </span>
+                    <p class="doc">
+                        <p>updates the <code>delayed</code> property of a <code>(Scheduler e)</code> using a function <code>f</code>.</p>
+
+                    </p>
+                </div>
+                <div class="binder">
+                    <a class="anchor" href="#update-next-id">
+                        <h3 id="update-next-id">
+                            update-next-id
+                        </h3>
+                    </a>
+                    <div class="description">
+                        instantiate
+                    </div>
+                    <p class="sig">
+                        (Fn [(Scheduler a), (Ref (Fn [Long] Long b) c)] (Scheduler a))
+                    </p>
+                    <span>
+                        
+                    </span>
+                    <p class="doc">
+                        <p>updates the <code>next-id</code> property of a <code>(Scheduler e)</code> using a function <code>f</code>.</p>
+
+                    </p>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>

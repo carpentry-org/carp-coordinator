@@ -1,0 +1,48 @@
+(load "carp-coordinator.carp")
+
+(Project.config "title" "carp-coordinator")
+(Project.config "docs-directory" "./docs/")
+(Project.config "docs-logo" "")
+(Project.config "docs-url" "https://github.com/carpentry-org/carp-coordinator")
+(Project.config "docs-styling" "../style.css")
+(Project.config "docs-prelude" "An event system for Carp, in three layers that
+can be used separately or together.
+
+```
+(load \"git@github.com:carpentry-org/carp-coordinator@master\")
+```
+
+### Layers
+- [`Dispatcher`](./Dispatcher.html) — the switchboard. handlers subscribe and
+  get an id back; `broadcast!` calls each of them synchronously. handlers are
+  snapshotted first, so a handler may subscribe or unsubscribe mid-broadcast
+  without disturbing the one in flight.
+- [`Scheduler`](./Scheduler.html) — the clock. a binary heap of
+  [`TimedEvent`](./TimedEvent.html)s ordered by due time, with one-shot and
+  periodic tasks and cancellation by id.
+- [`Coordinator`](./Coordinator.html) — the two above plus a FIFO queue, driven
+  by a throttled run loop. `tick!` drains the queue exhaustively, so events
+  raised by handlers run in the same tick.
+
+### Events
+Events are whatever type you make them, usually a sumtype. handlers return a
+`Result`, and the coordinator counts the failures rather than swallowing them.
+
+```
+(deftype AppEvent (Msg [String]) (Stop []))
+
+(let-do [c (Coordinator.new)]
+  (Coordinator.subscribe! &c &(fn [ev]
+    (match ev
+      (AppEvent.Msg s) (do (IO.println s) (Result.Success ()))
+      (AppEvent.Stop)  (do (Coordinator.stop! &c) (Result.Success ())))))
+  (Coordinator.dispatch! &c (AppEvent.Msg @\"hello\"))
+  (Coordinator.schedule! &c (AppEvent.Stop) 1000l)
+  (Coordinator.run! &c))
+```")
+
+(save-docs TimedEvent Dispatcher Scheduler Coordinator)
+; Carp's save-docs hardcodes the index filename as <title>_index.html.
+; Rename to docs/index.html.
+(defn main []
+  (System.system "mv ./docs/carp-coordinator_index.html ./docs/index.html"))

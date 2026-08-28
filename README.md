@@ -26,17 +26,17 @@ This library is built on the **Conductor** mental model, separating the system i
 
 ## Installation
 
-Add this to your project by loading `dispatch.carp`.
-
 ```clojure
-(load "path/to/carp-deque/deque.carp")
-(load "path/to/carp-priority-queue/priority_queue.carp")
-(load "path/to/carp-coordinator/dispatch.carp")
+(load "git@github.com:carpentry-org/carp-coordinator@master")
 
 (use Dispatcher)
 (use Scheduler)
 (use Coordinator)
 ```
+
+`Deque` and `PriorityQueue` come from
+[carp-collections](https://github.com/carpentry-org/carp-collections) and are
+pulled in for you.
 
 ## Quick Start
 
@@ -69,7 +69,9 @@ carp -x test/engine_test.carp
 
 ## Examples
 
-See [examples.md](examples.md) for usage examples.
+See [examples.md](examples.md) for usage examples, and the
+[API documentation](https://carpentry.dev/carp-coordinator) for the full
+reference.
 
 ## License
 

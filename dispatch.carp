@@ -1,5 +1,6 @@
-(load "../carp-collections/deque.carp")
-(load "../carp-collections/priority_queue.carp")
+(load "git@github.com:carpentry-org/carp-collections@master" "deque.carp")
+(load "git@github.com:carpentry-org/carp-collections@master"
+  "priority_queue.carp")
 
 (use Deque)
 (use PriorityQueue)
